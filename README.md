@@ -18,11 +18,15 @@ Ready-to-import [n8n](https://n8n.io) workflows that use a **local LLM via [Olla
 
 > If n8n runs in Docker and Ollama runs on the host, change `http://localhost:11434` to `http://host.docker.internal:11434`.
 
-## Want one built for you?
+## New to local AI? Start here
 
-**Siren Labs** builds custom AI automations: inbox triage, lead routing, research bots, content pipelines, and chat-on-your-docs. They're self-hosted, private, and fixed-price.
+📘 **[Private AI Stack in an Afternoon](https://ko-fi.com/4siren123/shop)** is a 12-page step-by-step guide to running Ollama, Open WebUI and n8n on your own Mac or PC. It covers which model fits your RAM, copy-paste install commands, your first AI workflow, security and backups, plus fixes for the 10 problems everyone hits.
 
-👉 **[Order a custom automation, from $75](https://ko-fi.com/4siren123/commissions)**
+## Want it built for you?
+
+**Siren Labs** builds private AI that runs on *your* machine, for homes, solo pros and small offices: inbox triage, lead scoring, research digests, ask-your-documents assistants, and receipt-to-spreadsheet automation. It's self-hosted and fixed-price, with no subscriptions.
+
+👉 **[Order a custom private automation, from $75](https://ko-fi.com/4siren123/commissions)**
 
 Made by the team behind [SIREN](https://messagegabrielhere-lgtm.github.io/doomcon/), a live AI-risk dashboard · [@SIRENutf6](https://x.com/SIRENutf6)
 
