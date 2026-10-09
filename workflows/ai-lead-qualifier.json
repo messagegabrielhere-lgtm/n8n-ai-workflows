@@ -1,0 +1,204 @@
+{
+  "name": "AI Lead Qualifier (local LLM)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AI Lead Qualifier\nPoint your contact form at this webhook. A local LLM scores buying intent 1-10, summarizes the lead and drafts a first reply. Hot leads (7+) ping you on Discord instantly.\n\nSetup: Ollama + `ollama pull llama3.2`, paste your Discord webhook URL, activate.\n\nNeed it customized or built for your stack? Siren Labs builds custom AI automations: https://ko-fi.com/4siren123/commissions",
+        "height": 300,
+        "width": 380
+      },
+      "id": "3a5feadf-93db-4b7b-b1c6-2a1f784a2d85",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b2814d6d-b77f-4595-91a2-84a1c9870465",
+      "name": "New lead (form webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "5a4cabbc-d1ff-4030-a994-8b6665af04c6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama3.2', prompt: 'Score this inbound sales lead. Reply ONLY as JSON with keys: score (1-10 buying intent), category (string), summary (one sentence), reply (a short friendly first reply email).\\n\\nLead: ' + JSON.stringify($json.body), stream: false, format: 'json' }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "9cbf86e9-9f50-4857-a856-9dd303bc9371",
+      "name": "Score lead with local AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(i => {\n  let a = {};\n  try { a = JSON.parse(i.json.response); } catch (e) { a = { score: 0, summary: 'Could not parse', reply: '' }; }\n  const lead = $('New lead (form webhook)').first().json.body;\n  return { json: { ...a, score: Number(a.score) || 0, lead } };\n});"
+      },
+      "id": "d5b07a74-9ab8-4e25-be9d-94512bc30f26",
+      "name": "Parse AI answer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "9fa4a5fe-3fda-431c-8823-5340c43a48cd",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1bc5374-c806-4d1a-8caa-0b26602db2ca",
+      "name": "Hot lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/REPLACE_ME",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: '🔥 Hot lead (' + $json.score + '/10): ' + $json.summary + '\\n\\nSuggested reply:\\n' + $json.reply }) }}",
+        "options": {}
+      },
+      "id": "e3f9cf57-f298-49ae-8ee0-3147b5adae78",
+      "name": "Alert: hot lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
+      },
+      "id": "9284a25d-7a44-4b5c-a16a-84f4dc48ccd4",
+      "name": "Reply to form",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "New lead (form webhook)": {
+      "main": [
+        [
+          {
+            "node": "Score lead with local AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score lead with local AI": {
+      "main": [
+        [
+          {
+            "node": "Parse AI answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI answer": {
+      "main": [
+        [
+          {
+            "node": "Hot lead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hot lead?": {
+      "main": [
+        [
+          {
+            "node": "Alert: hot lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reply to form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert: hot lead": {
+      "main": [
+        [
+          {
+            "node": "Reply to form",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
