@@ -1,0 +1,179 @@
+{
+  "name": "AI Morning Brief (local LLM)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## AI Morning Brief\nReads your RSS feeds every morning, has a local LLM (Ollama) pick what matters, and posts a 5-bullet brief to Discord.\n\nSetup: install Ollama + `ollama pull llama3.2`, edit the feed list, paste your Discord webhook URL.\n\nNeed it customized or built for your stack? Siren Labs builds custom AI automations: https://ko-fi.com/4siren123/commissions",
+        "height": 300,
+        "width": 380
+      },
+      "id": "acf6f767-c631-4133-a29b-1917a2cfb6c9",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "d8fbffce-61f4-4dac-8cfa-0a0358f48240",
+      "name": "Every morning 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Edit this list: any RSS/Atom feeds you care about\nconst feeds = [\n  'https://hnrss.org/frontpage',\n  'https://feeds.arstechnica.com/arstechnica/index',\n  'https://www.theverge.com/rss/index.xml',\n];\nreturn feeds.map(url => ({ json: { url } }));"
+      },
+      "id": "2c8bb2fd-3673-41ec-89e2-4feca6dc81ec",
+      "name": "Feeds to read",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "id": "9235ffe2-dc87-464f-86d2-a9d751d1a058",
+      "name": "Read RSS",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json)\n  .sort((a, b) => new Date(b.isoDate || b.pubDate || 0) - new Date(a.isoDate || a.pubDate || 0))\n  .slice(0, 25);\nconst list = items.map((i, n) => `${n + 1}. ${i.title} (${i.link})`).join('\\n');\nreturn [{ json: { list } }];"
+      },
+      "id": "93fdfbfc-dcf0-4a60-b083-bf84e5f83b3c",
+      "name": "Top headlines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama3.2', prompt: 'You are a sharp news editor. From these headlines, write a 5-bullet morning brief of what matters today. Keep each bullet under 25 words and include the link.\\n\\n' + $json.list, stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "9c855b6e-276c-4b61-b403-af050991add8",
+      "name": "Summarize with local AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/REPLACE_ME",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: '**Morning Brief**\\n' + $json.response.slice(0, 1900) }) }}",
+        "options": {}
+      },
+      "id": "4855f62d-9c43-40b1-b632-9080861e24aa",
+      "name": "Send to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Every morning 7am": {
+      "main": [
+        [
+          {
+            "node": "Feeds to read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feeds to read": {
+      "main": [
+        [
+          {
+            "node": "Read RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read RSS": {
+      "main": [
+        [
+          {
+            "node": "Top headlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Top headlines": {
+      "main": [
+        [
+          {
+            "node": "Summarize with local AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize with local AI": {
+      "main": [
+        [
+          {
+            "node": "Send to Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
