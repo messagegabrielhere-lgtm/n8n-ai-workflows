@@ -1,0 +1,161 @@
+{
+  "name": "Website Change Watcher with AI summary",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Website Change Watcher\nChecks any page every hour (competitor pricing, job boards, docs). When it changes, a local LLM explains what changed in plain English and pings you on Discord.\n\nSetup: Ollama + `ollama pull llama3.2`, set the URL in 'Fetch page', paste your Discord webhook URL.\n\nNeed it customized or built for your stack? Siren Labs builds custom AI automations: https://ko-fi.com/4siren123/commissions",
+        "height": 300,
+        "width": 380
+      },
+      "id": "e52f0e1e-8018-42b3-b28a-8edad84c1d16",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -420,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "c22b6388-dca5-4ae7-aa63-ff6a82c63a87",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://example.com/pricing",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "eaf58936-4cfd-4aff-8a4e-76eeebaba093",
+      "name": "Fetch page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Strips HTML, compares with the last run, and passes on only when the page changed\nconst store = $getWorkflowStaticData('global');\nconst text = String($json.data || '').replace(/<script[\\s\\S]*?<\\/script>|<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 12000);\nconst before = store.last || '';\nstore.last = text;\nif (!before || before === text) return [];\nreturn [{ json: { before: before.slice(0, 5000), after: text.slice(0, 5000) } }];"
+      },
+      "id": "14f3253f-27d5-4bbc-800d-885bd604d741",
+      "name": "Detect change",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'llama3.2', prompt: 'A web page changed. In 3 short bullets, say exactly what changed (prices, wording, new or removed items).\\n\\nBEFORE:\\n' + $json.before + '\\n\\nAFTER:\\n' + $json.after, stream: false }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "fa396e20-2514-47e0-8caf-9a752ddbcedd",
+      "name": "Explain the change",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/REPLACE_ME",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ content: '🔔 Page changed:\\n' + $json.response.slice(0, 1900) }) }}",
+        "options": {}
+      },
+      "id": "9e22a8bc-3c02-4e02-8b83-d035bd14e29f",
+      "name": "Notify on Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [
+        [
+          {
+            "node": "Fetch page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch page": {
+      "main": [
+        [
+          {
+            "node": "Detect change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect change": {
+      "main": [
+        [
+          {
+            "node": "Explain the change",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explain the change": {
+      "main": [
+        [
+          {
+            "node": "Notify on Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
